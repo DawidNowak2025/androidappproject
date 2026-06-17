@@ -1,29 +1,40 @@
 package com.growgardentracker.android.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import com.growgardentracker.android.data.local.assistant.PlantCareAssistant
 import com.growgardentracker.android.data.local.entity.PlantEntity
+import com.growgardentracker.android.data.remote.wiki.WikiPage
 import com.growgardentracker.android.ui.components.EmptyStateCard
 import com.growgardentracker.android.ui.components.ErrorView
 import com.growgardentracker.android.ui.components.GreenPrimaryButton
@@ -40,9 +51,8 @@ import com.growgardentracker.android.viewmodel.ActivityViewModel
 import com.growgardentracker.android.viewmodel.AuthViewModel
 import com.growgardentracker.android.viewmodel.PlantViewModel
 import com.growgardentracker.android.viewmodel.SettingsViewModel
+import com.growgardentracker.android.viewmodel.WikiSearchViewModel
 import com.growgardentracker.android.viewmodel.ZoneViewModel
-import com.growgardentracker.android.viewmodel.localPlantKnowledge
-import com.growgardentracker.android.viewmodel.localWeatherAdvice
 
 @Composable
 fun WateringScheduleScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel, navController: NavHostController) {
@@ -121,57 +131,119 @@ fun ActivityLogScreen(viewModel: ActivityViewModel, navController: NavHostContro
 }
 
 @Composable
-fun PlantApiSearchScreen(navController: NavHostController) {
-    var query by remember { mutableStateOf("") }
-    val results = localPlantKnowledge().filter { it.name.contains(query, true) || it.type.contains(query, true) }
+fun PlantApiSearchScreen(viewModel: WikiSearchViewModel, navController: NavHostController) {
+    val state by viewModel.state.collectAsState()
     ScreenScaffold("Plant Knowledge", navController, canGoBack = true) { modifier ->
         LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item { ScreenHeader("Plant Knowledge", "Offline care notes for common garden plants.") }
+            item { ScreenHeader("Plant Knowledge", "Search Wikipedia for plant pages, descriptions and images.") }
             item {
-                OutlinedTextField(
-                    query,
-                    { query = it },
-                    label = { Text("Search local plant knowledge") },
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            if (results.isEmpty()) item { EmptyStateCard("No matching plant", "Try Tomato, Mint, Dahlia, Peace Lily or Strawberry.") }
-            items(results) { item ->
-                Card(colors = CardDefaults.cardColors(containerColor = CardCream), elevation = CardDefaults.cardElevation(2.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(item.name, style = MaterialTheme.typography.titleLarge, color = GardenDark)
-                        Text(item.type, color = TextMuted, fontWeight = FontWeight.SemiBold)
-                        Text(item.advice)
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        state.query,
+                        { viewModel.updateQuery(it) },
+                        label = { Text("Search Wikipedia plant knowledge") },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    GreenPrimaryButton("Search Wikipedia", onClick = { viewModel.search() })
                 }
+            }
+            if (state.isLoading) {
+                item { CircularProgressIndicator() }
+            }
+            if (state.error.isNotBlank()) {
+                item { EmptyStateCard("Plant knowledge unavailable", state.error) }
+            }
+            if (!state.isLoading && state.error.isBlank() && state.results.isEmpty()) {
+                item { EmptyStateCard("Search for a plant", "Try tomato, mint, dahlia, peace lily or strawberry.") }
+            }
+            items(state.results) { page ->
+                WikiResultCard(page)
             }
         }
     }
 }
 
 @Composable
-fun WeatherAdviceScreen(viewModel: PlantViewModel, navController: NavHostController) {
-    val state by viewModel.state.collectAsState()
-    ScreenScaffold("Weather Advice", navController, canGoBack = true) { modifier ->
-        LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item { ScreenHeader("Weather Advice", "Local seasonal guidance based on month and watering status.") }
-            item {
-                Card(colors = CardDefaults.cardColors(containerColor = CardCream), elevation = CardDefaults.cardElevation(3.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("Seasonal watering note", style = MaterialTheme.typography.titleLarge, color = GardenDark)
-                        Text(localWeatherAdvice(state.plants), color = TextMuted)
-                    }
+private fun WikiResultCard(page: WikiPage) {
+    val context = LocalContext.current
+    val pageUrl = page.contentUrls?.desktop?.page ?: page.contentUrls?.mobile?.page ?: "https://en.wikipedia.org/wiki/${page.key}"
+    Card(colors = CardDefaults.cardColors(containerColor = CardCream), elevation = CardDefaults.cardElevation(2.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                page.thumbnail?.url?.let { url ->
+                    AsyncImage(model = url, contentDescription = page.title, modifier = Modifier.size(82.dp))
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(page.title, style = MaterialTheme.typography.titleLarge, color = GardenDark)
+                    Text(page.description ?: "Wikipedia plant result", color = TextMuted, fontWeight = FontWeight.SemiBold)
                 }
             }
-            item { SectionTitle("Plants needing attention", "Based on local schedule") }
-            val attention = state.plants.filter { DateUtils.wateringStatus(it.nextWateringDate) != "Upcoming" }
-            if (attention.isEmpty()) item { EmptyStateCard("No urgent watering", "Your local schedule looks calm today.") }
-            items(attention) { plant ->
-                Card(colors = CardDefaults.cardColors(containerColor = CardCream)) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(plant.name, modifier = Modifier.weight(1f), color = GardenDark, fontWeight = FontWeight.SemiBold)
-                        StatusBadge(DateUtils.wateringStatus(plant.nextWateringDate))
+            Text(page.excerpt?.replace(Regex("<.*?>"), "").orEmpty().ifBlank { "Open Wikipedia to read more." }, color = TextMuted)
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(pageUrl))) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Open on Wikipedia")
+            }
+        }
+    }
+}
+
+@Composable
+fun PlantAssistantScreen(
+    plantViewModel: PlantViewModel,
+    zoneViewModel: ZoneViewModel,
+    activityViewModel: ActivityViewModel,
+    navController: NavHostController
+) {
+    val plantState by plantViewModel.state.collectAsState()
+    val zoneState by zoneViewModel.state.collectAsState()
+    val activityState by activityViewModel.state.collectAsState()
+    var selectedPlantId by remember { mutableStateOf<Long?>(null) }
+    val selectedPlant = plantState.plants.firstOrNull { it.id == selectedPlantId } ?: plantState.plants.firstOrNull()
+    LaunchedEffect(selectedPlant?.id) {
+        selectedPlant?.let {
+            selectedPlantId = it.id
+            plantViewModel.observeHistory(it.id)
+        }
+    }
+
+    ScreenScaffold("AI Plant Care Assistant", navController, canGoBack = true) { modifier ->
+        LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            item { ScreenHeader("AI Plant Care Assistant", "Local rule-based advice from your plants, zones, notes and history.") }
+            if (plantState.plants.isEmpty()) {
+                item { EmptyStateCard("No plants to analyse", "Add a plant first, then the assistant can generate care advice.", "Add Plant") { navController.navigate(Routes.ADD_PLANT) } }
+            }
+            if (plantState.plants.isNotEmpty()) {
+                item {
+                    SectionTitle("Choose a plant", "Advice is generated locally on this device")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        plantState.plants.take(6).forEach { plant ->
+                            AssistChip(
+                                onClick = { selectedPlantId = plant.id },
+                                label = { Text(if (plant.id == selectedPlant?.id) "${plant.name} selected" else plant.name) }
+                            )
+                        }
+                    }
+                }
+                selectedPlant?.let { plant ->
+                    val zone = zoneState.zones.firstOrNull { it.id == plant.zoneId }
+                    val advice = PlantCareAssistant.generateAdvice(plant, zone, plantState.history, activityState.activity)
+                    item {
+                        Card(colors = CardDefaults.cardColors(containerColor = CardCream), elevation = CardDefaults.cardElevation(3.dp)) {
+                            Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(plant.name, style = MaterialTheme.typography.titleLarge, color = GardenDark)
+                                Text(zone?.name ?: "No zone assigned", color = TextMuted)
+                                StatusBadge(DateUtils.wateringStatus(plant.nextWateringDate))
+                            }
+                        }
+                    }
+                    item { SectionTitle("Care advice", "Generated from local Room data") }
+                    items(advice) { item ->
+                        Card(colors = CardDefaults.cardColors(containerColor = CardCream), elevation = CardDefaults.cardElevation(1.dp)) {
+                            Text(item, Modifier.fillMaxWidth().padding(14.dp), color = GardenDark)
+                        }
                     }
                 }
             }

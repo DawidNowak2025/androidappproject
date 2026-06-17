@@ -20,8 +20,8 @@ import androidx.navigation.NavHostController
 import com.growgardentracker.android.ui.components.AppIcons
 import com.growgardentracker.android.ui.components.DashboardStatCard
 import com.growgardentracker.android.ui.components.EmptyStateCard
+import com.growgardentracker.android.ui.components.GardenHeroHeader
 import com.growgardentracker.android.ui.components.QuickActionCard
-import com.growgardentracker.android.ui.components.ScreenHeader
 import com.growgardentracker.android.ui.components.ScreenScaffold
 import com.growgardentracker.android.ui.components.SectionTitle
 import com.growgardentracker.android.ui.components.StatusBadge
@@ -47,19 +47,13 @@ fun DashboardScreen(
     val plantState by plantViewModel.state.collectAsState()
     val zoneState by zoneViewModel.state.collectAsState()
     val plants = plantState.plants
-    val wateredToday = dashboardState.summary.recentActivity.count {
-        it.date == DateUtils.today() && it.text.contains("watered", ignoreCase = true)
-    }
+    val dueToday = plants.count { DateUtils.wateringStatus(it.nextWateringDate) == "Water Today" }
     val upcomingPlants = plants.sortedBy { it.nextWateringDate }.take(4)
 
     ScreenScaffold("Dashboard", navController) { modifier ->
         LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
             item {
-                ScreenHeader(
-                    title = "GROW Garden Tracker",
-                    subtitle = "Organise plants, watering, zones and garden activity in one calm mobile tracker.",
-                    welcome = "Welcome back to your garden"
-                )
+                GardenHeroHeader()
             }
             item {
                 if (plants.isEmpty()) {
@@ -75,12 +69,35 @@ fun DashboardScreen(
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DashboardStatCard("Total plants", dashboardState.summary.totalPlants.toString(), "Saved locally")
-                        DashboardStatCard("Next watering", dashboardState.summary.nextWateringPlants.toString(), "Upcoming checks", DueOrange)
+                        DashboardStatCard(
+                            "Total plants",
+                            dashboardState.summary.totalPlants.toString(),
+                            "View all plants",
+                            onClick = { navController.navigate("plants/all") }
+                        )
+                        DashboardStatCard(
+                            "Due today",
+                            dueToday.toString(),
+                            "Due today",
+                            DueOrange,
+                            onClick = { navController.navigate("plants/dueToday") }
+                        )
                     }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DashboardStatCard("Overdue", dashboardState.summary.overduePlants.toString(), "Need attention", WarningRed)
-                        DashboardStatCard("Watered today", wateredToday.toString(), "Completed today", MaterialTheme.colorScheme.primary)
+                        DashboardStatCard(
+                            "Overdue",
+                            dashboardState.summary.overduePlants.toString(),
+                            "Check overdue",
+                            WarningRed,
+                            onClick = { navController.navigate("plants/overdue") }
+                        )
+                        DashboardStatCard(
+                            "Active zones",
+                            zoneState.zones.size.toString(),
+                            "Open zones",
+                            MaterialTheme.colorScheme.primary,
+                            onClick = { navController.navigate(Routes.ZONES) }
+                        )
                     }
                 }
             }
@@ -88,10 +105,11 @@ fun DashboardScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     QuickActionCard("Add Plant", "Create a new plant record", AppIcons.Add) { navController.navigate(Routes.ADD_PLANT) }
-                    QuickActionCard("Watering Schedule", "See overdue, due today and upcoming plants", AppIcons.Water) { navController.navigate(Routes.WATERING) }
-                    QuickActionCard("Garden Zones", "Manage growing areas and beds", AppIcons.Zones) { navController.navigate(Routes.ZONES) }
-                    QuickActionCard("Plant Knowledge", "Search local plant care notes", AppIcons.Knowledge) { navController.navigate(Routes.SEARCH) }
-                    QuickActionCard("Weather Advice", "Read seasonal watering guidance", AppIcons.Weather) { navController.navigate(Routes.WEATHER) }
+                    QuickActionCard("Garden Map", "See plant pins on zone photos", AppIcons.Zones) { navController.navigate(Routes.GARDEN_MAP) }
+                    QuickActionCard("Plant Knowledge", "Search Wikipedia plant pages", AppIcons.Knowledge) { navController.navigate(Routes.SEARCH) }
+                    QuickActionCard("AI Assistant", "Local rule-based plant care advice", AppIcons.Assistant) { navController.navigate(Routes.ASSISTANT) }
+                    QuickActionCard("Zones", "Manage growing areas and beds", AppIcons.Zones) { navController.navigate(Routes.ZONES) }
+                    QuickActionCard("Activity Log", "Review recent local garden actions", AppIcons.Activity) { navController.navigate(Routes.ACTIVITY) }
                 }
             }
             item { SectionTitle("Upcoming watering", "Plants ordered by next watering date") }

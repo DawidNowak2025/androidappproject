@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
+import com.growgardentracker.android.data.local.assistant.PlantCareAssistant
 import com.growgardentracker.android.data.local.entity.GardenZoneEntity
 import com.growgardentracker.android.data.local.entity.PlantEntity
 import com.growgardentracker.android.ui.components.EmptyStateCard
@@ -54,16 +55,30 @@ import com.growgardentracker.android.ui.theme.GardenDark
 import com.growgardentracker.android.ui.theme.TextMuted
 import com.growgardentracker.android.util.DateUtils
 import com.growgardentracker.android.util.ImageStorageHelper
+import com.growgardentracker.android.viewmodel.ActivityViewModel
 import com.growgardentracker.android.viewmodel.PlantViewModel
 import com.growgardentracker.android.viewmodel.ZoneViewModel
 import java.io.File
 
 @Composable
-fun PlantListScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel, navController: NavHostController) {
+fun PlantListScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel, navController: NavHostController, initialFilter: String = "all") {
     val plantState by plantViewModel.state.collectAsState()
     val zoneState by zoneViewModel.state.collectAsState()
     var query by remember { mutableStateOf("") }
-    var filter by remember { mutableStateOf("All") }
+    var filter by remember(initialFilter) {
+        mutableStateOf(
+            when (initialFilter) {
+                "overdue" -> "Overdue"
+                "dueToday" -> "Water Today"
+                else -> "All"
+            }
+        )
+    }
+    val screenTitle = when (filter) {
+        "Overdue" -> "Overdue Plants"
+        "Water Today" -> "Due Today Plants"
+        else -> "All Plants"
+    }
     val filtered = plantState.plants.filter { plant ->
         val matchesSearch = plant.name.contains(query, true) || plant.plantType.contains(query, true)
         val status = DateUtils.wateringStatus(plant.nextWateringDate)
@@ -73,7 +88,7 @@ fun PlantListScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel
 
     ScreenScaffold("Plants", navController) { modifier ->
         LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            item { ScreenHeader("Plant Collection", "Browse, search and care for every plant in your garden.") }
+            item { ScreenHeader(screenTitle, "Browse, search and care for plants in your garden.") }
             item { ErrorView(plantState.error) }
             item {
                 OutlinedTextField(
@@ -95,9 +110,17 @@ fun PlantListScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel
             if (filtered.isEmpty()) {
                 item {
                     EmptyStateCard(
-                        title = "No plants added yet",
-                        message = "Start by adding your first plant to build your garden tracker.",
-                        actionText = "Add Plant",
+                        title = when (filter) {
+                            "Overdue" -> "No overdue plants"
+                            "Water Today" -> "No plants due today"
+                            else -> "No plants added yet"
+                        },
+                        message = when (filter) {
+                            "Overdue" -> "Everything is on schedule right now."
+                            "Water Today" -> "No plants need watering today."
+                            else -> "Start by adding your first plant to build your garden tracker."
+                        },
+                        actionText = if (filter == "All") "Add Plant" else null,
                         onAction = { navController.navigate(Routes.ADD_PLANT) }
                     )
                 }
@@ -111,9 +134,10 @@ fun PlantListScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel
 }
 
 @Composable
-fun PlantDetailsScreen(id: Long, plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel, navController: NavHostController) {
+fun PlantDetailsScreen(id: Long, plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel, activityViewModel: ActivityViewModel, navController: NavHostController) {
     val plantState by plantViewModel.state.collectAsState()
     val zoneState by zoneViewModel.state.collectAsState()
+    val activityState by activityViewModel.state.collectAsState()
     LaunchedEffect(id) { plantViewModel.observePlant(id); plantViewModel.observeHistory(id) }
     val plant = plantState.selectedPlant
     ScreenScaffold("Plant Details", navController, canGoBack = true) { modifier ->
@@ -148,9 +172,6 @@ fun PlantDetailsScreen(id: Long, plantViewModel: PlantViewModel, zoneViewModel: 
                 }
                 item {
                     DetailCard("Map pin") {
-                        Text("Zone ID: ${plant.zoneId?.toString() ?: "none"}", color = TextMuted)
-                        Text("Zone name: ${selectedZone?.name ?: "none"}", color = TextMuted)
-                        Text("Zone imagePath: ${selectedZone?.imagePath ?: "none"}", color = TextMuted)
                         ZonePhotoMapBox(
                             zoneImagePath = selectedZone?.imagePath,
                             plants = emptyList(),
@@ -169,6 +190,12 @@ fun PlantDetailsScreen(id: Long, plantViewModel: PlantViewModel, zoneViewModel: 
                 item {
                     DetailCard("Notes") {
                         Text(plant.notes.ifBlank { "No notes yet." })
+                    }
+                }
+                item {
+                    DetailCard("AI Care Advice") {
+                        val advice = PlantCareAssistant.generateAdvice(plant, selectedZone, plantState.history, activityState.activity)
+                        advice.forEach { Text(it, color = GardenDark) }
                     }
                 }
                 item {
@@ -261,9 +288,6 @@ private fun PlantFormScreen(existing: PlantEntity?, plantViewModel: PlantViewMod
             } }
             item {
                 FormSection("Set Map Pin") {
-                    Text("Selected zone id: ${zoneId?.toString() ?: "none"}", color = TextMuted)
-                    Text("Selected zone name: ${selectedZone?.name ?: "none"}", color = TextMuted)
-                    Text("Selected zone imagePath: ${selectedZone?.imagePath ?: "none"}", color = TextMuted)
                     when {
                         selectedZone == null -> {
                             Text("Select a zone first.", color = TextMuted)

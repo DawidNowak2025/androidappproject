@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.Button
@@ -58,6 +60,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -121,6 +124,7 @@ fun AppBottomNavigation(navController: NavHostController) {
         NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.DASHBOARD) }, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Home") })
         NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.PLANTS) }, icon = { Icon(Icons.Default.LocalFlorist, null) }, label = { Text("Plants") })
         NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.GARDEN_MAP) }, icon = { Icon(Icons.Default.Map, null) }, label = { Text("Map") })
+        NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.ASSISTANT) }, icon = { Icon(Icons.Default.Psychology, null) }, label = { Text("Assistant") })
         NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Settings") })
     }
 }
@@ -142,6 +146,33 @@ fun ScreenHeader(title: String, subtitle: String, welcome: String = "") {
 }
 
 @Composable
+fun GardenHeroHeader(welcome: String = "Welcome back to your garden") {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(28.dp),
+        elevation = CardDefaults.cardElevation(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    Brush.linearGradient(
+                        listOf(GardenDark, MaterialTheme.colorScheme.primary, FreshMint)
+                    )
+                )
+                .padding(22.dp)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(welcome, color = Color.White.copy(alpha = 0.86f), style = MaterialTheme.typography.bodyLarge)
+                Text("GROW Garden Tracker", color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                Text("Garden Resource Organisation and Watering", color = Color.White.copy(alpha = 0.90f), style = MaterialTheme.typography.titleMedium)
+                Text("Track plants, watering, zones and garden activity in one place.", color = Color.White.copy(alpha = 0.82f), style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
+@Composable
 fun SectionTitle(title: String, subtitle: String = "") {
     Column(Modifier.fillMaxWidth()) {
         Text(title, style = MaterialTheme.typography.titleLarge, color = GardenDark)
@@ -150,12 +181,21 @@ fun SectionTitle(title: String, subtitle: String = "") {
 }
 
 @Composable
-fun DashboardStatCard(title: String, value: String, subtitle: String, tint: Color = MaterialTheme.colorScheme.primary) {
+fun DashboardStatCard(
+    title: String,
+    value: String,
+    subtitle: String,
+    tint: Color = MaterialTheme.colorScheme.primary,
+    onClick: (() -> Unit)? = null
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = CardCream),
-        elevation = CardDefaults.cardElevation(3.dp)
+        border = BorderStroke(1.dp, BorderSoft),
+        elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = GardenDark)
@@ -433,5 +473,6 @@ object AppIcons {
     val Water = Icons.Default.WaterDrop
     val Zones = Icons.Default.Map
     val Knowledge = Icons.Default.MenuBook
-    val Weather = Icons.Default.Cloud
+    val Assistant = Icons.Default.Psychology
+    val Activity = Icons.Default.ReceiptLong
 }

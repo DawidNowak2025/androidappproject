@@ -15,6 +15,7 @@ import com.growgardentracker.android.ui.screens.EditPlantScreen
 import com.growgardentracker.android.ui.screens.FullScreenImagePreview
 import com.growgardentracker.android.ui.screens.GardenMapScreen
 import com.growgardentracker.android.ui.screens.LoginScreen
+import com.growgardentracker.android.ui.screens.PlantAssistantScreen
 import com.growgardentracker.android.ui.screens.PlantApiSearchScreen
 import com.growgardentracker.android.ui.screens.PlantDetailsScreen
 import com.growgardentracker.android.ui.screens.PlantHistoryScreen
@@ -22,13 +23,13 @@ import com.growgardentracker.android.ui.screens.PlantListScreen
 import com.growgardentracker.android.ui.screens.RegisterScreen
 import com.growgardentracker.android.ui.screens.SettingsScreen
 import com.growgardentracker.android.ui.screens.WateringScheduleScreen
-import com.growgardentracker.android.ui.screens.WeatherAdviceScreen
 import com.growgardentracker.android.ui.screens.ZoneManagerScreen
 import com.growgardentracker.android.viewmodel.ActivityViewModel
 import com.growgardentracker.android.viewmodel.AuthViewModel
 import com.growgardentracker.android.viewmodel.DashboardViewModel
 import com.growgardentracker.android.viewmodel.PlantViewModel
 import com.growgardentracker.android.viewmodel.SettingsViewModel
+import com.growgardentracker.android.viewmodel.WikiSearchViewModel
 import com.growgardentracker.android.viewmodel.ZoneViewModel
 
 object Routes {
@@ -36,6 +37,7 @@ object Routes {
     const val REGISTER = "register"
     const val DASHBOARD = "dashboard"
     const val PLANTS = "plants"
+    const val PLANTS_FILTERED = "plants/{filter}"
     const val PLANT_DETAILS = "plantDetails/{id}"
     const val ADD_PLANT = "addPlant"
     const val EDIT_PLANT = "editPlant/{id}"
@@ -45,7 +47,7 @@ object Routes {
     const val HISTORY = "history/{id}"
     const val ACTIVITY = "activity"
     const val SEARCH = "search"
-    const val WEATHER = "weather"
+    const val ASSISTANT = "assistant"
     const val SETTINGS = "settings"
     const val IMAGE = "image?path={path}"
 }
@@ -58,28 +60,32 @@ fun AppNavigation(navController: NavHostController = rememberNavController()) {
     val dashboardViewModel: DashboardViewModel = viewModel()
     val activityViewModel: ActivityViewModel = viewModel()
     val settingsViewModel: SettingsViewModel = viewModel()
+    val wikiSearchViewModel: WikiSearchViewModel = viewModel()
 
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
         composable(Routes.LOGIN) { LoginScreen(authViewModel, navController) }
         composable(Routes.REGISTER) { RegisterScreen(authViewModel, navController) }
-            composable(Routes.DASHBOARD) { DashboardScreen(dashboardViewModel, plantViewModel, zoneViewModel, navController) }
+        composable(Routes.DASHBOARD) { DashboardScreen(dashboardViewModel, plantViewModel, zoneViewModel, navController) }
         composable(Routes.PLANTS) { PlantListScreen(plantViewModel, zoneViewModel, navController) }
+        composable(Routes.PLANTS_FILTERED, arguments = listOf(navArgument("filter") { type = NavType.StringType })) {
+            PlantListScreen(plantViewModel, zoneViewModel, navController, it.arguments?.getString("filter") ?: "all")
+        }
         composable(Routes.PLANT_DETAILS, arguments = listOf(navArgument("id") { type = NavType.LongType })) {
-            PlantDetailsScreen(it.arguments?.getLong("id") ?: 0L, plantViewModel, zoneViewModel, navController)
+            PlantDetailsScreen(it.arguments?.getLong("id") ?: 0L, plantViewModel, zoneViewModel, activityViewModel, navController)
         }
         composable(Routes.ADD_PLANT) { AddPlantScreen(plantViewModel, zoneViewModel, navController) }
         composable(Routes.EDIT_PLANT, arguments = listOf(navArgument("id") { type = NavType.LongType })) {
             EditPlantScreen(it.arguments?.getLong("id") ?: 0L, plantViewModel, zoneViewModel, navController)
         }
         composable(Routes.GARDEN_MAP) { GardenMapScreen(plantViewModel, zoneViewModel, navController) }
-            composable(Routes.ZONES) { ZoneManagerScreen(zoneViewModel, plantViewModel, navController) }
-            composable(Routes.WATERING) { WateringScheduleScreen(plantViewModel, zoneViewModel, navController) }
+        composable(Routes.ZONES) { ZoneManagerScreen(zoneViewModel, plantViewModel, navController) }
+        composable(Routes.WATERING) { WateringScheduleScreen(plantViewModel, zoneViewModel, navController) }
         composable(Routes.HISTORY, arguments = listOf(navArgument("id") { type = NavType.LongType })) {
             PlantHistoryScreen(it.arguments?.getLong("id") ?: 0L, plantViewModel, navController)
         }
         composable(Routes.ACTIVITY) { ActivityLogScreen(activityViewModel, navController) }
-        composable(Routes.SEARCH) { PlantApiSearchScreen(navController) }
-        composable(Routes.WEATHER) { WeatherAdviceScreen(plantViewModel, navController) }
+        composable(Routes.SEARCH) { PlantApiSearchScreen(wikiSearchViewModel, navController) }
+        composable(Routes.ASSISTANT) { PlantAssistantScreen(plantViewModel, zoneViewModel, activityViewModel, navController) }
         composable(Routes.SETTINGS) { SettingsScreen(authViewModel, settingsViewModel, navController) }
         composable(
             Routes.IMAGE,

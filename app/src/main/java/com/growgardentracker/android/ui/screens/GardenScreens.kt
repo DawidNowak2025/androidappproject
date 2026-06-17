@@ -62,9 +62,6 @@ fun GardenMapScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel
                 val pinnedPlants = zonePlants.filter { it.mapX != null && it.mapY != null }
                 val unpinnedPlants = zonePlants.filter { it.mapX == null || it.mapY == null }
                 ZoneSummaryCard(zone = zone, plantCount = zonePlants.size) {
-                    Text("Zone ID: ${zone.id}", color = TextMuted)
-                    Text("Zone name: ${zone.name}", color = TextMuted)
-                    Text("Zone imagePath: ${zone.imagePath ?: "none"}", color = TextMuted)
                     ZonePhotoMapBox(
                         zoneImagePath = zone.imagePath,
                         plants = pinnedPlants,

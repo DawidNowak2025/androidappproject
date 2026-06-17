@@ -8,9 +8,10 @@ import com.growgardentracker.android.data.local.entity.GardenZoneEntity
 import com.growgardentracker.android.data.local.entity.PlantEntity
 import com.growgardentracker.android.data.local.entity.UserEntity
 import com.growgardentracker.android.data.local.entity.WateringHistoryEntity
+import com.growgardentracker.android.data.remote.wiki.WikiPage
+import com.growgardentracker.android.data.remote.wiki.WikiRepository
 import com.growgardentracker.android.data.repository.DashboardSummary
 import com.growgardentracker.android.data.repository.ResultState
-import com.growgardentracker.android.util.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -203,29 +204,41 @@ class SettingsViewModel : ViewModel() {
     }
 }
 
-data class PlantKnowledge(val name: String, val type: String, val advice: String)
-
-fun localPlantKnowledge(): List<PlantKnowledge> = listOf(
-    PlantKnowledge("Tomato", "Vegetable", "Tomatoes like full sun, steady watering, and support as they grow."),
-    PlantKnowledge("Mint", "Herb", "Mint grows quickly and is best kept in a pot with regular watering."),
-    PlantKnowledge("Dahlia", "Flower", "Dahlias prefer rich soil, sunny places, and watering during dry spells."),
-    PlantKnowledge("Peace Lily", "Houseplant", "Peace lilies prefer indirect light and should be watered when the top soil feels dry."),
-    PlantKnowledge("Strawberry", "Fruit", "Strawberries need sun, mulch, and consistent moisture during fruiting.")
+data class WikiSearchUiState(
+    val query: String = "",
+    val results: List<WikiPage> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String = ""
 )
 
-fun localWeatherAdvice(plants: List<PlantEntity>): String {
-    val month = DateUtils.currentMonth()
-    val season = when (month) {
-        12, 1, 2 -> "winter"
-        3, 4, 5 -> "spring"
-        6, 7, 8 -> "summer"
-        else -> "autumn"
+class WikiSearchViewModel : ViewModel() {
+    private val repository = WikiRepository()
+    private val _state = MutableStateFlow(WikiSearchUiState())
+    val state: StateFlow<WikiSearchUiState> = _state
+
+    fun updateQuery(query: String) {
+        _state.update { it.copy(query = query) }
     }
-    val overdue = plants.count { DateUtils.wateringStatus(it.nextWateringDate) == "Overdue" }
-    return when (season) {
-        "summer" -> "Summer advice: check soil more often. $overdue plants are overdue."
-        "winter" -> "Winter advice: water less often and avoid waterlogged soil. $overdue plants are overdue."
-        "spring" -> "Spring advice: growth is active, so keep watering regular. $overdue plants are overdue."
-        else -> "Autumn advice: reduce watering slowly as temperatures drop. $overdue plants are overdue."
+
+    fun search() = viewModelScope.launch {
+        val query = _state.value.query.trim()
+        if (query.isBlank()) {
+            _state.value = WikiSearchUiState(error = "Type a plant name to search Wikipedia.")
+            return@launch
+        }
+        _state.update { it.copy(isLoading = true, error = "") }
+        repository.searchPlants(query)
+            .onSuccess { pages ->
+                _state.update { it.copy(results = pages, isLoading = false, error = "") }
+            }
+            .onFailure {
+                _state.update {
+                    it.copy(
+                        results = emptyList(),
+                        isLoading = false,
+                        error = "Plant knowledge could not be loaded. Check internet connection."
+                    )
+                }
+            }
     }
 }
