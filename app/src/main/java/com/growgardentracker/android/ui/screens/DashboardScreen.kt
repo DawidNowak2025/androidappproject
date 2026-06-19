@@ -1,6 +1,7 @@
 package com.growgardentracker.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -67,8 +68,17 @@ fun DashboardScreen(
             }
             item { SectionTitle("Garden overview", "A quick look at your local garden records") }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                BoxWithConstraints {
+                    if (maxWidth < 360.dp) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            DashboardStatCard("Total plants", dashboardState.summary.totalPlants.toString(), "View all plants") { navController.navigate("plants/all") }
+                            DashboardStatCard("Due today", dueToday.toString(), "Due today", DueOrange) { navController.navigate("plants/dueToday") }
+                            DashboardStatCard("Overdue", dashboardState.summary.overduePlants.toString(), "Check overdue", WarningRed) { navController.navigate("plants/overdue") }
+                            DashboardStatCard("Active zones", zoneState.zones.size.toString(), "Open zones", MaterialTheme.colorScheme.primary) { navController.navigate(Routes.ZONES) }
+                        }
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         DashboardStatCard(
                             "Total plants",
                             dashboardState.summary.totalPlants.toString(),
@@ -83,7 +93,7 @@ fun DashboardScreen(
                             onClick = { navController.navigate("plants/dueToday") }
                         )
                     }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         DashboardStatCard(
                             "Overdue",
                             dashboardState.summary.overduePlants.toString(),
@@ -98,6 +108,8 @@ fun DashboardScreen(
                             MaterialTheme.colorScheme.primary,
                             onClick = { navController.navigate(Routes.ZONES) }
                         )
+                    }
+                        }
                     }
                 }
             }

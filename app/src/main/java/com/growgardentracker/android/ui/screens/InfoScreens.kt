@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
@@ -29,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -218,11 +220,17 @@ fun PlantAssistantScreen(
             if (plantState.plants.isNotEmpty()) {
                 item {
                     SectionTitle("Choose a plant", "Advice is generated locally on this device")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        plantState.plants.take(6).forEach { plant ->
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(plantState.plants.take(6)) { plant ->
                             AssistChip(
                                 onClick = { selectedPlantId = plant.id },
-                                label = { Text(if (plant.id == selectedPlant?.id) "${plant.name} selected" else plant.name) }
+                                label = {
+                                    Text(
+                                        if (plant.id == selectedPlant?.id) "${plant.name} selected" else plant.name,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
                             )
                         }
                     }

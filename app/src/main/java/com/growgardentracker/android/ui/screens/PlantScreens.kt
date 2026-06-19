@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
@@ -100,9 +102,12 @@ fun PlantListScreen(plantViewModel: PlantViewModel, zoneViewModel: ZoneViewModel
                 )
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("All", "Overdue", "Water Today", "Upcoming").forEach { label ->
-                        AssistChip(onClick = { filter = label }, label = { Text(label) })
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(listOf("All", "Overdue", "Water Today", "Upcoming")) { label ->
+                        AssistChip(
+                            onClick = { filter = label },
+                            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                        )
                     }
                 }
             }
@@ -369,8 +374,19 @@ private fun PlantFormScreen(existing: PlantEntity?, plantViewModel: PlantViewMod
 private fun ZonePicker(zones: List<GardenZoneEntity>, selectedId: Long?, onSelect: (Long) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Garden zone", fontWeight = FontWeight.SemiBold, color = GardenDark)
-        zones.forEach { zone ->
-            AssistChip(onClick = { onSelect(zone.id) }, label = { Text(if (zone.id == selectedId) "${zone.name} selected" else zone.name) })
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(zones) { zone ->
+                AssistChip(
+                    onClick = { onSelect(zone.id) },
+                    label = {
+                        Text(
+                            if (zone.id == selectedId) "${zone.name} selected" else zone.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                )
+            }
         }
     }
 }

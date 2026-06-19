@@ -64,11 +64,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import com.growgardentracker.android.data.local.entity.PlantEntity
@@ -115,17 +118,32 @@ fun ScreenScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = { AppTopBar(title, canGoBack) { navController.popBackStack() } },
         bottomBar = { if (!canGoBack) AppBottomNavigation(navController) }
-    ) { padding -> content(Modifier.padding(padding).padding(horizontal = 16.dp, vertical = 10.dp)) }
+    ) { padding ->
+        content(Modifier.padding(padding).padding(start = 16.dp, top = 10.dp, end = 16.dp, bottom = 16.dp))
+    }
 }
 
 @Composable
 fun AppBottomNavigation(navController: NavHostController) {
+    val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+    val items = listOf(
+        Triple("Home", Routes.DASHBOARD, Icons.Default.Home),
+        Triple("Plants", Routes.PLANTS, Icons.Default.LocalFlorist),
+        Triple("Map", Routes.GARDEN_MAP, Icons.Default.Map),
+        Triple("AI", Routes.ASSISTANT, Icons.Default.Psychology),
+        Triple("Settings", Routes.SETTINGS, Icons.Default.Settings)
+    )
     NavigationBar(containerColor = CardCream, tonalElevation = 8.dp) {
-        NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.DASHBOARD) }, icon = { Icon(Icons.Default.Home, null) }, label = { Text("Home") })
-        NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.PLANTS) }, icon = { Icon(Icons.Default.LocalFlorist, null) }, label = { Text("Plants") })
-        NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.GARDEN_MAP) }, icon = { Icon(Icons.Default.Map, null) }, label = { Text("Map") })
-        NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.ASSISTANT) }, icon = { Icon(Icons.Default.Psychology, null) }, label = { Text("Assistant") })
-        NavigationBarItem(selected = false, onClick = { navController.navigate(Routes.SETTINGS) }, icon = { Icon(Icons.Default.Settings, null) }, label = { Text("Settings") })
+        items.forEach { (label, route, icon) ->
+            NavigationBarItem(
+                selected = currentRoute == route || (route == Routes.PLANTS && currentRoute == Routes.PLANTS_FILTERED),
+                onClick = { navController.navigate(route) { launchSingleTop = true } },
+                icon = { Icon(icon, contentDescription = label) },
+                label = {
+                    Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 11.sp)
+                }
+            )
+        }
     }
 }
 
@@ -198,9 +216,9 @@ fun DashboardStatCard(
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = GardenDark)
+            Text(title, style = MaterialTheme.typography.titleMedium, color = GardenDark, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(value, style = MaterialTheme.typography.headlineLarge, color = tint)
-            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextMuted, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -228,7 +246,7 @@ fun QuickActionCard(title: String, subtitle: String, icon: ImageVector, onClick:
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, color = GardenDark)
+                Text(title, style = MaterialTheme.typography.titleMedium, color = GardenDark, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = TextMuted)
             }
         }
@@ -245,7 +263,7 @@ fun StatusBadge(status: String) {
     Box(
         modifier = Modifier.clip(RoundedCornerShape(100.dp)).background(color.copy(alpha = 0.12f)).padding(horizontal = 10.dp, vertical = 5.dp)
     ) {
-        Text(status, color = color, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+        Text(status, color = color, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -263,7 +281,7 @@ fun PlantCard(plant: PlantEntity, zoneName: String, onClick: () -> Unit) {
             LocalImage(plant.plantImagePath, Modifier.size(88.dp), onClick)
             Column(Modifier.padding(start = 12.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(plant.name, style = MaterialTheme.typography.titleMedium, color = GardenDark, modifier = Modifier.weight(1f))
+                    Text(plant.name, style = MaterialTheme.typography.titleMedium, color = GardenDark, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Text("${plant.plantType} - $zoneName", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
                 Text("Next watering: ${plant.nextWateringDate}", style = MaterialTheme.typography.bodyMedium)
@@ -300,7 +318,7 @@ fun GreenPrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = M
         shape = RoundedCornerShape(16.dp),
         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
     ) {
-        Text(text, fontWeight = FontWeight.SemiBold)
+        Text(text, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
